@@ -38,26 +38,33 @@ bool HashTable::insert(unsigned long long key, unsigned long long location)
 	unsigned detect = 0;
 	while (detect <= DEPT_OF_DETECTION)
 	{
-		HashIndex = Hash(key) % nMainTable + detect*detect;
+		HashIndex = (Hash(key) + detect*detect)% nMainTable;
 		if (MainTable[HashIndex].key == UnusedKey)
 		{
 			MainTable[HashIndex].key = key;
 			MainTable[HashIndex].location = location;
+			++nUsedMainTable;
 			return true;
 		}
 		else if (MainTable[HashIndex].key == key)
 		{
-			HashIndex = Hash(key) % nOverflowTable;
-			if (OverflowTable[HashIndex].key == UnusedKey)
+			detect=0;
+			while (detect <= DEPT_OF_DETECTION)
 			{
-				OverflowTable[HashIndex].key = key;
-				OverflowTable[HashIndex].locations.push_back(location);
-				return true;
-			}
-			else if (OverflowTable[HashIndex].key == key)
-			{
-				OverflowTable[HashIndex].locations.push_back(location);
-				return true;
+				HashIndex = (Hash(key)+detect*detect) % nOverflowTable;
+				if (OverflowTable[HashIndex].key == UnusedKey)
+				{
+					OverflowTable[HashIndex].key = key;
+					OverflowTable[HashIndex].locations.push_back(location);
+					++nUsedOverflowTable;
+					return true;
+				}
+				else if (OverflowTable[HashIndex].key == key)
+				{
+					OverflowTable[HashIndex].locations.push_back(location);
+					return true;
+				}
+				++detect;
 			}
 		}
 		++detect;
@@ -70,7 +77,7 @@ HashTable::Entry* HashTable::lookupMainTable(unsigned long long key)
 	unsigned detect = 0;
 	while (detect <= DEPT_OF_DETECTION)
 	{
-		HashIndex = Hash(key) % nMainTable + detect*detect;
+		HashIndex = (Hash(key) + detect*detect)% nMainTable;
 		if (MainTable[HashIndex].key == UnusedKey)
 		{
 			return nullptr;
@@ -85,10 +92,20 @@ HashTable::Entry* HashTable::lookupMainTable(unsigned long long key)
 }
 HashTable::OverflowEntry * HashTable::lookupOverflowTable(unsigned long long key)
 {
-	unsigned long long HashIndex = Hash(key) % nOverflowTable;
-	if (OverflowTable[HashIndex].key == key)
+	unsigned long long HashIndex;
+	unsigned detect = 0;
+	while (detect <= DEPT_OF_DETECTION)
 	{
-		return OverflowTable+HashIndex;
+		HashIndex = (Hash(key)+detect*detect) % nOverflowTable;
+		if (OverflowTable[HashIndex].key == UnusedKey)
+		{
+			return nullptr;
+		}
+		else if (OverflowTable[HashIndex].key == key)
+		{
+			return OverflowTable + HashIndex;
+		}
+		++detect;
 	}
 	return nullptr;
 }
