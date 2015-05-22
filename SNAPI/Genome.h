@@ -11,20 +11,23 @@ public:
 	struct Chromesome
 	{
 		std::string name;
-		unsigned long long start_location;
+		unsigned start_location;
 		NASeq sequence;
-	}
-	Genome();
+	};
+	Genome(const char * FolderPath);//take the folder of fa files as the parameter
 	~Genome();
 	std::vector<Chromesome> chrs;//the start_locations of those chromesomes are increasing, that's to say, the earlier you are read, the smaller your start_location is
-	unsigned getChrNumber(unsigned long long location) const
+	unsigned getChrNumber(unsigned location) const
 	{
-		for (unsigned i=0;i<MAX_CHROMESOME;++i)
+		for (unsigned i = 0; i < MAX_CHROMESOMES; ++i)
 		{
-			if (location<end_locations) return i;
+			if (location < end_locations[i]) return i;
 		}
 	}
+	bool saveToFile(FILE*);
+	bool readFromFile(FILE*);
 private:
-	unsigned long long start_locations[MAX_CHROMESOMES];
+	unsigned end_locations[MAX_CHROMESOMES];
+	friend class Indexer;
 };
 

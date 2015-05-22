@@ -45,6 +45,12 @@
     <ClCompile Include="Genome.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Aligner.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Indexer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="base.h">
@@ -72,6 +78,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Genome.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Aligner.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Indexer.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -6,7 +6,7 @@
 double HashTable::OverflowPara = 0.1;
 unsigned long long HashTable::UnusedKey = 0xffffffffffffffff;
 
-HashTable::HashTable(unsigned long long NumberOfEntries)
+HashTable::HashTable(unsigned NumberOfEntries)
 :nMainTable(NumberOfEntries), nOverflowTable(NumberOfEntries*OverflowPara), nUsedMainTable(0), nUsedOverflowTable(0)
 {
 	if (NumberOfEntries != 0)
@@ -32,7 +32,7 @@ HashTable::~HashTable()
 		delete OverflowTable;
 }
 
-bool HashTable::insert(unsigned long long key, unsigned long long location)
+bool HashTable::insert(unsigned long long key, unsigned location)
 {
 	unsigned long long HashIndex;
 	unsigned detect = 0;

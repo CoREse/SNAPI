@@ -64,11 +64,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Aligner.cpp" />
     <ClCompile Include="base.cpp" />
     <ClCompile Include="defines.cpp" />
     <ClCompile Include="Genome.cpp" />
     <ClCompile Include="HashTable.cpp" />
     <ClCompile Include="index.cpp" />
+    <ClCompile Include="Indexer.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="NASeq.cpp" />
     <ClCompile Include="RSeed.cpp" />
@@ -76,11 +78,13 @@
     <ClCompile Include="sequence.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Aligner.h" />
     <ClInclude Include="base.h" />
     <ClInclude Include="defines.h" />
     <ClInclude Include="Genome.h" />
     <ClInclude Include="HashTable.h" />
     <ClInclude Include="index.h" />
+    <ClInclude Include="Indexer.h" />
     <ClInclude Include="NASeq.h" />
     <ClInclude Include="RSeed.h" />
     <ClInclude Include="seed.h" />

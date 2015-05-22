@@ -16,27 +16,31 @@ public:
 	}
 	struct Entry{
 		unsigned long long key;
-		unsigned long long location;
+		unsigned location;
 	};
 	struct OverflowEntry
 	{
 		unsigned long long key;
-		std::vector<unsigned long long> locations;
+		std::vector<unsigned> locations;
 	};
 	~HashTable();
-	HashTable(unsigned long long NumberOfEntries = 0);
-	inline unsigned long long getnMainTable() const { return nMainTable; }
-	inline unsigned long long getnUsedMainTable() const { return nUsedMainTable; }
-	inline unsigned long long getnOverflowTable() const { return nOverflowTable; }
-	inline unsigned long long getnUsedOverflowTable() const { return nUsedOverflowTable; }
+	HashTable(unsigned NumberOfEntries = 0);
+	inline unsigned getnMainTable() const { return nMainTable; }
+	inline unsigned getnUsedMainTable() const { return nUsedMainTable; }
+	inline unsigned getnOverflowTable() const { return nOverflowTable; }
+	inline unsigned getnUsedOverflowTable() const { return nUsedOverflowTable; }
 
-	bool insert(unsigned long long key, unsigned long long location);
+	bool insert(unsigned long long key, unsigned location);
 	Entry* lookupMainTable(unsigned long long key);
 	OverflowEntry * lookupOverflowTable(unsigned long long key);
 	//OverflowEntry lookupIntel(unsigned long long) const;
 	void lookup(unsigned long long key, Entry* MainResult, OverflowEntry* OverflowResult);
+
+	bool saveToFile(FILE*);
+	bool readFromFile(FILE*);
 private:
 	Entry *MainTable;
 	OverflowEntry * OverflowTable;
-	unsigned long long nMainTable, nOverflowTable, nUsedMainTable, nUsedOverflowTable;
+	unsigned nMainTable, nOverflowTable, nUsedMainTable, nUsedOverflowTable;
+	friend class Indexer;
 };

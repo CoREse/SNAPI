@@ -1,6 +1,7 @@
 #include "NASeq.h"
 #include <stdlib.h>
 #include <string.h>
+#include <cassert>
 
 #define MAX_SEQUENCE_LENGTH 3000000000
 
@@ -18,12 +19,12 @@ char NASeq::RNAcharset[16] =
 };
 
 NASeq::NASeq()
-:isRNA(false), isSkipped(false), LengthInByte(0), length(0), seq(nullptr)
+:isRNA(false), isSkipped(false), LengthInByte(0), length(0), seq(nullptr), copies(1), originalSeq(nullptr)
 {
 }
 
 NASeq::NASeq(const char * sseq, unsigned slength)
-: isRNA(false), isSkipped(false)
+: isRNA(false), isSkipped(false), copies(1), originalSeq(nullptr)
 {
 	length = slength == 0 ? strlen(sseq) : slength;
 	if (length == 0)
@@ -38,14 +39,16 @@ NASeq::NASeq(const char * sseq, unsigned slength)
 	{
 		seq[i] = sseq + i * 2;
 	}
+	originalSeq = seq;
 }
 
-NASeq::NASeq(const NASeq& b)
+NASeq::NASeq(NASeq& b)
 {
 	*this = b;
 }
 
 NASeq::NASeq(FILE * ifile, bool isFQ)
+:copies(1), originalSeq(nullptr)
 {
 	if (isFQ)
 	{
@@ -144,15 +147,31 @@ NASeq::NASeq(FILE * ifile, bool isFQ)
 			length += slen;
 		}
 	}
+	originalSeq = seq;
 }
 
 NASeq::~NASeq()
 {
-	delete seq;
+	if (--copies == 0)	delete originalSeq;
 }
 
-NASeq& NASeq::operator=(const NASeq & b)
+NASeq& NASeq::operator=(NASeq & b)
 {
+	++b.copies;
+	originalSeq = b.originalSeq;
+	isRNA = b.isRNA;
+	isSkipped = b.isSkipped;
+	length = b.length;
+	LengthInByte = b.LengthInByte;
+	seq = b.seq;
+	copies = b.copies;
+	return *this;
+}
+
+/*the old version
+NASeq& NASeq::operator=(NASeq & b)
+{
+	++b.copies;
 	isRNA = b.isRNA;
 	isSkipped = b.isSkipped;
 	length = b.length;
@@ -162,10 +181,12 @@ NASeq& NASeq::operator=(const NASeq & b)
 	{
 		seq[i] = b.seq[i];
 	}
+	copies = b.copies;
 	return *this;
 }
+*/
 
-NASeq& NASeq::operator~()
+NASeq NASeq::operator~()
 {
 	return reverse();
 }
@@ -179,6 +200,7 @@ NASeq& NASeq::reverse()
 	return *this;
 }
 
+/*
 NASeq& NASeq::append(const NASeq& b)
 {
 	if (b.length == 0)
@@ -297,7 +319,9 @@ NASeq& NASeq::append(const char * sseq, unsigned slen)
 	length += slen;
 	return *this;
 }
+*/
 
+/*
 char * NASeq::toString(unsigned pos, unsigned length)
 {
 	if (length == 0)
@@ -349,15 +373,70 @@ char * NASeq::toString(unsigned pos, unsigned length)
 	str[length] = '\0';
 	return str;
 }
+*/
 
 base NASeq::operator[] (unsigned i) const
 {
 	if (isSkipped)
 	{
-		return base(seq[i / 2+i%2].val << i % 2 == 0 ? 4 : 0);
+		return base(seq[i / 2 + i % 2].val << i % 2 == 0 ? 4 : 0);
 	}
 	else
 	{
 		return base(seq[i / 2].val << i % 2 == 0 ? 0 : 4);
 	}
+}
+
+
+NASeq NASeq::getSubSequence(unsigned start_loc, unsigned length)
+{
+	assert(length != 0);
+	NASeq sub;
+	sub.copies = ++copies;
+	sub.isRNA = isRNA;
+	sub.length = length;
+	sub.originalSeq = originalSeq;
+	if (isSkipped)
+	{
+		sub.seq = seq + length / 2 + length % 2;
+		sub.isSkipped = start_loc % 2 == 0;
+		sub.LengthInByte = sub.isSkipped ? 1 : 0 + length / 2 + sub.isSkipped ? 0 : length % 2;
+	}
+	else
+	{
+		sub.seq = seq + start_loc / 2;
+		sub.isSkipped = start_loc % 2;
+		sub.LengthInByte = sub.isSkipped ? 1 : 0 + length / 2 + sub.isSkipped ? 0 : length % 2;
+	}
+	sub.copies = copies;
+	return *this;
+}
+
+
+bool NASeq::saveToFile(FILE* file)
+{
+	fprintf(file, "%d%d%u%u", isSkipped, isRNA, length, LengthInByte);
+	if (fwrite(seq, sizeof(base), LengthInByte, file) != LengthInByte)
+	{
+		fclose(file);
+		throw - 110;//Ð´ÈëNASeqÊ§°Ü£¡
+		return false;
+	}
+	return true;
+}
+
+bool NASeq::loadFromFile(FILE* file)
+{
+	if (seq != nullptr) return false;
+	fscanf(file, "%d%d%u%u", &isSkipped, &isRNA, &length, &LengthInByte);
+	copies = 0;
+	seq = (base*)malloc(LengthInByte);
+	originalSeq = seq;
+	if (fread(seq, sizeof(base), LengthInByte, file) != LengthInByte)
+	{
+		fclose(file);
+		throw - 110;//Ð´ÈëNASeqÊ§°Ü£¡
+		return false;
+	}
+	return true;
 }
