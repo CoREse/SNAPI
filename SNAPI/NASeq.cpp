@@ -415,7 +415,7 @@ NASeq NASeq::getSubSequence(unsigned start_loc, unsigned length)
 
 bool NASeq::saveToFile(FILE* file)
 {
-	fprintf(file, "%d%d%u%u", isSkipped, isRNA, length, LengthInByte);
+	fprintf(file, "%d %d %u %u\n", isSkipped, isRNA, length, LengthInByte);
 	if (fwrite(seq, sizeof(base), LengthInByte, file) != LengthInByte)
 	{
 		fclose(file);
@@ -428,7 +428,7 @@ bool NASeq::saveToFile(FILE* file)
 bool NASeq::loadFromFile(FILE* file)
 {
 	if (seq != nullptr) return false;
-	fscanf(file, "%d%d%u%u", &isSkipped, &isRNA, &length, &LengthInByte);
+	fscanf(file, "%d %d %u %u\n", &isSkipped, &isRNA, &length, &LengthInByte);
 	copies = 0;
 	seq = (base*)malloc(LengthInByte);
 	originalSeq = seq;

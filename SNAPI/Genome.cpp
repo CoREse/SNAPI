@@ -51,7 +51,38 @@ Genome::Genome(const char * FolderPath)
 	_findclose(lf);
 }
 
+Genome::Genome()
+{
+}
 
 Genome::~Genome()
 {
+}
+
+bool Genome::saveToFile(FILE* file)
+{
+	fprintf(file,"%u\n",chrs.size());
+	for (unsigned i=0;i<chrs.size();++i)
+	{
+		fprintf(file,"%s ",chrs[i].name.c_str());
+		if (!chrs[i].sequence.saveToFile(file)) return false;
+		fprintf(file,"%u %u\n",chrs[i].start_location, end_locations[i]);
+	}
+	return true;
+}
+
+bool Genome::loadFromFile(FILE* file)
+{
+	unsigned chrsize;
+	fscanf(file,"%u\n",&chrsize);
+	extern char * buffer;
+	for (unsigned i=0;i<chrsize;++i)
+	{
+		Chromesome tmpChr;
+		fscanf(file,"%s ",buffer);
+		tmpChr.name=buffer;
+		if (!tmpChr.sequence.loadFromFile(file)) return false;
+		fscanf(file,"%u %u\n",&(tmpChr.start_location),end_locations+i);
+	}
+	return true;
 }

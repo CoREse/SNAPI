@@ -114,3 +114,42 @@ void HashTable::lookup(unsigned long long key, Entry* MainResult, OverflowEntry*
 	MainResult = lookupMainTable(key);
 	OverflowResult = lookupOverflowTable(key);
 }
+
+bool saveToFile(FILE* file)
+{
+	fprintf(file,"%lf\n",OverflowPara);
+	fprintf(file,"%u %u %u %u\n",nMainTable,nUsedMainTable,nOverflowTable,nUsedOverflowTable);
+	if (fwrite(MainTable,sizeof(Entry),nMainTable)!=nMainTable)
+	{
+		fclose(file);
+		throw -110;
+	}
+	for (unsigned i=0;i<nOverflowTable;++i)
+	{
+		fprintf(file,"%llu %u ",OverflowTable[i].key,OverflowTable[i].locations.size());
+		for (unsigned j=0;j<OverflowTable[i].locations.size();++j)
+		{
+			fprintf(file,"%u ",OverflowTable[i].locations[j]);
+		}
+	}
+}
+
+bool loadFromFile(FILE* file)
+{
+	fscanf(file,"%lf\n%u %u %u %u\n",&OverflowPara, &nMainTable,&nUsedMainTable,&nOverflowTable,&nUsedOverflowTable);
+	if (fread(MainTable,sizeof(Entry),nMainTable)!=nMainTable)
+	{
+		fclose(file);
+		throw -110;
+	}
+	unsigned nloc,tmploc;
+	for (unsigned i=0;i<nOverflowTable;++i)
+	{
+		fscanf(file,"%llu %u ",&(OverflowTable[i].key),&nloc);
+		for (unsigned j=0;j<nloc;++j)
+		{
+			fscanf(file,"%u ",&tmploc);
+			OverflowTable[i].locations.push_back(tmploc);
+		}
+	}
+}

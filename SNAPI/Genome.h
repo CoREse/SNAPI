@@ -28,6 +28,5 @@ public:
 	bool readFromFile(FILE*);
 private:
 	unsigned end_locations[MAX_CHROMESOMES];
-	friend class Indexer;
 };
 

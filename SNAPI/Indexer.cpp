@@ -36,15 +36,7 @@ bool Indexer::saveToFile(const char * fname)
 		throw - 102;
 		return false;
 	}
-	fprintf(file, "%u\n", Reference->chrs.size());
-	//first the reference's chrs
-	for (unsigned i = 0; i < Reference->chrs.size(); ++i)
-	{
-		fprintf(file, "%s %u\n", Reference->chrs[i].name, Reference->chrs[i].start_location);
-		Reference->chrs[i].sequence.saveToFile(file);
-		fprintf(file, "\n");
-		fprintf(file,"%u\n",Reference->end_locations[i]);
-	}
+	if(!Reference->saveToFile(file)) return false;
 	fclose(file);
 	
 	//create the table filenames
@@ -150,16 +142,7 @@ bool Indexer::loadFromFile(const char * fname)
 	size_t genomeFileNameLength = (size_t)(strlen(fname) + strlen(genomeFileExtension) + 1);
 	char *genomeFileName = new char[genomeFileNameLength];
 	_snprintf(genomeFileName, genomeFileNameLength, "%s%s", fname, genomeFileExtension);
-	//allocate space
-	free(theGenome);
-	Reference = (char*)malloc(lengthOfGenome*sizeof(char));
-	if (theGenome == nullptr)
-	{
-		fclose(file);
-		throw - 106;//malloc∑÷≈‰ø’º‰ ß∞‹
-		return false;
-	}
-	//read theGenome from the genome file
+	assert(Reference==nullptr);
 	file = fopen(genomeFileName, "rb");
 	if (file == nullptr)
 	{
@@ -167,25 +150,7 @@ bool Indexer::loadFromFile(const char * fname)
 		return false;
 	}
 	Reference = new Genome();
-	unsigned Gsize;
-	fscanf(file, "%u", &Gsize);
-	extern char * buffer;
-	for (unsigned i = 0; i < Gsize; ++i)
-	{
-		Genome::Chromesome tmpChr;
-		fscanf(file, "%s %u\n", buffer, tmpChr.start_location);
-		tmpChr.name = buffer;
-		tmpChr.sequence.loadFromFile(file);
-		Reference->chrs.push_back(tmpChr);
-		fprintf(file, "\n");
-	}
-	fclose(file);
-	if (fread(theGenome, sizeof(char), lengthOfGenome, file) != lengthOfGenome)
-	{
-		fclose(file);
-		throw - 111;//∂¡»°Index ß∞‹£°
-		return false;
-	}
+	Reference->loadFromFile(file);
 	fclose(file);
 	return true;
 }

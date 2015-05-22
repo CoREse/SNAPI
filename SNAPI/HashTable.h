@@ -42,5 +42,4 @@ private:
 	Entry *MainTable;
 	OverflowEntry * OverflowTable;
 	unsigned nMainTable, nOverflowTable, nUsedMainTable, nUsedOverflowTable;
-	friend class Indexer;
 };
