@@ -3,8 +3,9 @@
 class HashTable
 {
 public:
-	static double OverflowPara;//nOverflowTable/nMainTable
+	static float OverflowPara, MainPara;//nOverflowTable/NumberOfEntries and nMainTable/NumberOfEntries
 	static unsigned long long UnusedKey;
+	static unsigned UnusedLocation;
 	static unsigned long long Hash(unsigned long long key)
 	{
 		key ^= key >> 33;
@@ -16,7 +17,8 @@ public:
 	}
 	struct Entry{
 		unsigned long long key;
-		unsigned location;
+		unsigned location1;
+		unsigned location2;
 	};
 	struct OverflowEntry
 	{
@@ -37,9 +39,10 @@ public:
 	void lookup(unsigned long long key, Entry* MainResult, OverflowEntry* OverflowResult);
 
 	bool saveToFile(FILE*);
-	bool readFromFile(FILE*);
+	bool loadFromFile(FILE*);
 private:
 	Entry *MainTable;
 	OverflowEntry * OverflowTable;
 	unsigned nMainTable, nOverflowTable, nUsedMainTable, nUsedOverflowTable;
+	friend class Indexer;
 };

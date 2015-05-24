@@ -4,12 +4,12 @@
 
 struct seed
 {
-	static int seedLen;
+	static unsigned seedLen;
 	static bool isASeed(const NASeq &);
 	//inline seed(const char * =nullptr);
-	inline seed(const NASeq&);
-	inline seed(unsigned long long forward, unsigned long long reversed);
-	inline ~seed();
+	seed(const NASeq&);
+	seed(unsigned long long forward, unsigned long long reversed);
+	~seed();
 	inline seed& reverse();
 	inline seed operator~();
 

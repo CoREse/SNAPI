@@ -27,3 +27,4 @@ struct base
 	~base();
 };
 
+bool operator<(const base &, const base &);

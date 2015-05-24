@@ -21,22 +21,13 @@
     <ClCompile Include="defines.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="index.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="NASeq.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="RSeed.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="seed.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sequence.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="HashTable.cpp">
@@ -51,6 +42,9 @@
     <ClCompile Include="Indexer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="BigAlloc.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="base.h">
@@ -59,19 +53,10 @@
     <ClInclude Include="defines.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="index.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="NASeq.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RSeed.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="seed.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sequence.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="HashTable.h">
@@ -84,6 +69,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Indexer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BigAlloc.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

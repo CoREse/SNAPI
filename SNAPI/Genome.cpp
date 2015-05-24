@@ -5,10 +5,12 @@
 
 using namespace std;
 
+char Genome::NameBuffer[1024];
+
 Genome::Genome(const char * FolderPath)
 {
 	_finddata_t file;
-	long lf;
+	intptr_t lf;
 	string FindString = FolderPath;
 	FindString.append("*.fa");
 	if ((lf = _findfirst(FindString.c_str(), &file)) != -1l)
@@ -19,7 +21,6 @@ Genome::Genome(const char * FolderPath)
 		{
 			assert(chrs.size() < MAX_CHROMESOMES);
 			//open the fa file
-			extern char *buffer;//defined in NASeq.cpp
 			string FaName = FolderPath;
 			FaName.append(file.name);
 			infile = fopen(FaName.c_str(),"r");
@@ -29,8 +30,8 @@ Genome::Genome(const char * FolderPath)
 				return;
 			}
 			//read the fa file
-			fscanf(infile, "%s", buffer);
-			tmpChr.name = buffer;
+			fscanf(infile, "%s", NameBuffer);
+			tmpChr.name = NameBuffer;
 			rewind(infile);
 			NASeq tmpNASeq(infile);
 			fclose(infile);
@@ -75,14 +76,14 @@ bool Genome::loadFromFile(FILE* file)
 {
 	unsigned chrsize;
 	fscanf(file,"%u\n",&chrsize);
-	extern char * buffer;
 	for (unsigned i=0;i<chrsize;++i)
 	{
 		Chromesome tmpChr;
-		fscanf(file,"%s ",buffer);
-		tmpChr.name=buffer;
+		fscanf(file,"%s ",NameBuffer);
+		tmpChr.name=NameBuffer;
 		if (!tmpChr.sequence.loadFromFile(file)) return false;
 		fscanf(file,"%u %u\n",&(tmpChr.start_location),end_locations+i);
+		chrs.push_back(tmpChr);
 	}
 	return true;
 }

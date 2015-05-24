@@ -1,7 +1,5 @@
 #include <iostream>
 #include "seed.h"
-#include "index.h"
-#include "sequence.h"
 #include <stdio.h>
 #include <time.h>
 #include <thread>
@@ -9,6 +7,8 @@
 #include <mutex>
 #include "base.h"
 #include "NASeq.h"
+#include "Genome.h"
+#include "Indexer.h"
 
 using namespace std;
 
@@ -32,21 +32,115 @@ static void usage()
 	exit(1);
 }
 
-index MyIndex;
-
 void buildIndex(int argc, const char **argv);
 void runAlign(int, const char **);
 
+int acomputeEditDistance(const char* text, int textLen, const char* pattern, int patternLen, int k)
+{
+	extern short L[MAX_K + 1][2 * MAX_K + 1];
+	for (int i = 0; i < MAX_K + 1; i++) {
+		for (int j = 0; j < 2 * MAX_K + 1; j++) {
+			L[i][j] = -2;
+		}
+	}
+	/*if (k >= MAX_K)
+	{
+	throw - 113;
+	return MAX_K;
+	}*/
+	extern int min(int, int);
+	extern void CountTrailingZeroes(uint64, unsigned long &);
+	k = min(MAX_K - 1, k); // enforce limit even in non-debug builds
+	if (NULL == text) {
+		// This happens when we're trying to read past the end of the genome.
+		return -1;
+	}
+	const char* p = pattern;
+	const char* t = text;
+	int end = min(patternLen, textLen);
+	const char* pend = pattern + end;
+	while (p < pend) {
+		uint64 x = *((uint64*)p) ^ *((uint64*)t);
+		if (x) {
+			unsigned long zeroes;
+			CountTrailingZeroes(x, zeroes);
+			zeroes >>= 3;
+			L[0][MAX_K] = min((int)(p - pattern) + (int)zeroes, end);
+			goto done1;
+		}
+		p += 8;
+		t += 8;
+	}
+	L[0][MAX_K] = end;
+done1:
+	if (L[0][MAX_K] == end) {
+		int result = (patternLen > end ? patternLen - end : 0); // Could need some deletions at the end
+		return result;
+	}
+
+	for (int e = 1; e <= k; e++) {
+		// Search d's in the order 0, 1, -1, 2, -2, etc to find an alignment with as few indels as possible.
+		for (int d = 0; d != e + 1; d = (d > 0 ? -d : -d + 1)) {
+			int best = L[e - 1][MAX_K + d] + 1; // up
+			int left = L[e - 1][MAX_K + d - 1];
+			if (left > best)
+				best = left;
+			int right = L[e - 1][MAX_K + d + 1] + 1;
+			if (right > best)
+				best = right;
+
+			const char* p = pattern + best;
+			const char* t = (text + d) + best;
+			if (*p == *t) {
+				int end = min(patternLen, textLen - d);
+				const char* pend = pattern + end;
+
+				while (true) {
+					uint64 x = *((uint64*)p) ^ *((uint64*)t);
+					if (x) {
+						unsigned long zeroes;
+						CountTrailingZeroes(x, zeroes);
+						zeroes >>= 3;
+						best = min((int)(p - pattern) + (int)zeroes, end);
+						break;
+					}
+					p += 8;
+					if (p >= pend) {
+						best = end;
+						break;
+					}
+					t += 8;
+				}
+			}
+
+			if (best == patternLen) {
+				return e;
+			}
+			L[e][MAX_K + d] = best;
+		}
+	}
+	return -1;
+}
+
 int main(int argc, const char **argv)
 {
-	FILE *ifile = fopen("chr21.fa", "r");
-	if (ifile == nullptr)
-	{
-		throw - 102;//file pointer is null
-		return false;
-	}
-	NASeq aseq(ifile);
+	/*Indexer theIndexer;
+	theIndexer.readReference("G:\\");
+	theIndexer.buildIndex();
+
+	theIndexer.saveToFile("F:\\save\\save");*/
+	//theIndexer.loadFromFile("F:\\save\\save");
+
+	char astr[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	uint64 bstr = *(uint64*)astr;
+
+	NASeq a("GAATC"), b("GCATC");
+	cout << acomputeEditDistance("GAATC", 5, "GCATC", 5, 10);
+	cout << NASeq::computeEditDistance(a, b, 10);
+
 	return 0;
+}
+	/*
 	cout << sizeof(aseq);
 	printf("Welcome to SNAP version %s.\n\n", SNAP_VERSION);
 	cin >> start;
@@ -96,6 +190,8 @@ int main(int argc, const char **argv)
 	//	fclose(sequence::outputFile);
 	//}
 	//fclose(fq);
+
+/*
 	return 0;
 }
 
@@ -308,6 +404,7 @@ void runAlign(int argc, const char **argv)
 					{
 						printf("%u reads aligned\n", sequence::SequenceAligned);
 					}*/
+/*
 				}
 			} while (suc);
 		}));
@@ -330,6 +427,8 @@ void runAlign(int argc, const char **argv)
 			}
 		}
 	} while (suc);*/
+
+/*
 	stop = time(NULL);
 	long speed = ((long)sequence::SequenceAligned) / (long)(stop - start);
 	printf("All %u reads aligned! Time spent: %llds. Read speed: %ld reads/s.", sequence::SequenceAligned, stop - start, speed); 
@@ -339,3 +438,4 @@ void runAlign(int argc, const char **argv)
 		fclose(sequence::outputFile);
 	}
 }
+*/

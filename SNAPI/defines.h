@@ -33,4 +33,4 @@ void printError(int);//receive error number and print the error.
 #define MAX_SEED_NUM 128
 #define MAX_HIT_NUM 2048
 #define MAX_EDD 1024
-#define MAX_SAVE_SIZE 50000000
+#define MAX_SAVE_SIZE 50000000u

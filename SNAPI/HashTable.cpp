@@ -1,26 +1,33 @@
 #include "HashTable.h"
 #include <stdlib.h>
+#include <cassert>
+#include "BigAlloc.h"
 
 #define DEPT_OF_DETECTION 6
 
-double HashTable::OverflowPara = 0.1;
+float HashTable::OverflowPara = 0.015, HashTable::MainPara=0.85;
 unsigned long long HashTable::UnusedKey = 0xffffffffffffffff;
+unsigned HashTable::UnusedLocation = 0xffffffff;
 
+unsigned moreThanOneLocation;
 HashTable::HashTable(unsigned NumberOfEntries)
-:nMainTable(NumberOfEntries), nOverflowTable(NumberOfEntries*OverflowPara), nUsedMainTable(0), nUsedOverflowTable(0)
+:nMainTable(NumberOfEntries*MainPara), nOverflowTable(NumberOfEntries*OverflowPara), nUsedMainTable(0), nUsedOverflowTable(0)
 {
 	if (NumberOfEntries != 0)
 	{
-		MainTable = (Entry *)malloc(NumberOfEntries*sizeof(Entry));
-		OverflowTable = (OverflowEntry *)malloc(nOverflowTable*sizeof(OverflowEntry));
+		unsigned long long tmp = (unsigned long long)NumberOfEntries*sizeof(Entry);
+		MainTable = (Entry *)BigAlloc((unsigned long long)nMainTable*sizeof(Entry));
+		OverflowTable = (OverflowEntry *)BigAlloc((unsigned long long)nOverflowTable*sizeof(OverflowEntry));
 	}
-	for (unsigned long long i = 0; i != NumberOfEntries; ++i)
+	for (unsigned i = 0; i != nMainTable; ++i)
 	{
 		if (i < nOverflowTable)
 		{
 			OverflowTable[i].key = UnusedKey;
 		}
 		MainTable[i].key = UnusedKey;
+		MainTable[i].location1 = UnusedLocation;
+		MainTable[i].location2 = UnusedLocation;
 	}
 }
 
@@ -42,12 +49,18 @@ bool HashTable::insert(unsigned long long key, unsigned location)
 		if (MainTable[HashIndex].key == UnusedKey)
 		{
 			MainTable[HashIndex].key = key;
-			MainTable[HashIndex].location = location;
+			MainTable[HashIndex].location1 = location;
 			++nUsedMainTable;
 			return true;
 		}
 		else if (MainTable[HashIndex].key == key)
 		{
+			if (MainTable[HashIndex].location2 == UnusedLocation)
+			{
+				MainTable[HashIndex].location2 = location;
+				++moreThanOneLocation;
+				return true;
+			}
 			detect=0;
 			while (detect <= DEPT_OF_DETECTION)
 			{
@@ -115,11 +128,11 @@ void HashTable::lookup(unsigned long long key, Entry* MainResult, OverflowEntry*
 	OverflowResult = lookupOverflowTable(key);
 }
 
-bool saveToFile(FILE* file)
+bool HashTable::saveToFile(FILE* file)
 {
-	fprintf(file,"%lf\n",OverflowPara);
+	fprintf(file, "%f %f\n", MainPara, OverflowPara);
 	fprintf(file,"%u %u %u %u\n",nMainTable,nUsedMainTable,nOverflowTable,nUsedOverflowTable);
-	if (fwrite(MainTable,sizeof(Entry),nMainTable)!=nMainTable)
+	if (fwrite(MainTable,sizeof(Entry),nMainTable,file)!=nMainTable)
 	{
 		fclose(file);
 		throw -110;
@@ -134,15 +147,18 @@ bool saveToFile(FILE* file)
 	}
 }
 
-bool loadFromFile(FILE* file)
+bool HashTable::loadFromFile(FILE* file)
 {
-	fscanf(file,"%lf\n%u %u %u %u\n",&OverflowPara, &nMainTable,&nUsedMainTable,&nOverflowTable,&nUsedOverflowTable);
-	if (fread(MainTable,sizeof(Entry),nMainTable)!=nMainTable)
+	assert(MainTable == nullptr&&OverflowTable == nullptr);
+	fscanf(file, "%f %f\n%u %u %u %u\n", &MainPara, &OverflowPara, &nMainTable, &nUsedMainTable, &nOverflowTable, &nUsedOverflowTable);
+	MainTable = (Entry*)BigAlloc((unsigned long long)nMainTable*sizeof(Entry));
+	if (fread(MainTable,sizeof(Entry),nMainTable,file)!=nMainTable)
 	{
 		fclose(file);
 		throw -110;
 	}
 	unsigned nloc,tmploc;
+	OverflowTable = (OverflowEntry*)BigAlloc((unsigned long long)nOverflowTable*sizeof(OverflowEntry));
 	for (unsigned i=0;i<nOverflowTable;++i)
 	{
 		fscanf(file,"%llu %u ",&(OverflowTable[i].key),&nloc);

@@ -155,3 +155,8 @@ base& base::operator~()
 {
 	return reverse();
 }
+
+bool operator<(const base &a, const base &b)
+{
+	return a.val < b.val;
+}
