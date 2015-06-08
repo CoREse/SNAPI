@@ -1,0 +1,8 @@
+*.psess
+*.vspx
+.svn
+x64
+Debug
+Release
+*.obj
+*.tlog

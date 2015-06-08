@@ -2,45 +2,77 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cassert>
+#include <intrin.h>
 #include "defines.h"
+#include "seed.h"
+#include <thread>
 
 #define MAX_SEQUENCE_LENGTH 3000000000
+#define CountTrailingZeroes(x, ans) {_BitScanForward64(&ans, x);}
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
 
-char buffer[10240];
+char NASeq::buffer[10240];
 //char DNAcharset[17] = "VVVVVVVVAGCTNNNN";
-char NASeq::DNAcharset[16] =
-{
-	'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V',//V means vacancy
-	'A', 'G', 'C', 'T', 'N', 'N', 'N', 'N'
-};
-char NASeq::RNAcharset[16] =
-{
-	'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V',//V means vacancy
-	'A', 'G', 'C', 'U', 'N', 'N', 'N', 'N'
-};
 
-std::map <base*, unsigned> NASeq::copies;
+int NASeq::LegibleSeed[256];
+//=
+//{
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+//};
 
-inline int min(int a, int b)
-{
-	return a > b ? b : a;
-}
+char NASeq::Opposite[256];
+//=
+//{
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	'T', ' ', 'G', ' ', ' ', ' ', 'C', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'A', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	't', ' ', 'g', ' ', ' ', ' ', 'c', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'a', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+//	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
+//};
 
-short L[MAX_K + 1][2 * MAX_K + 1];// TODO: For long reads, we should include a version that only has L be 2 x (2*MAX_K+1) cells
+unsigned NASeq::NANumber[256];
+//=
+//{
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+//};
 
-inline void CountTrailingZeroes(uint64 x, unsigned long &z)
-{
-	for (z = 1; z <= 64; ++z)
-	{
-		if (((x >> z) << z) != x)
-		{
-			--z;
-			return;
-		}
-	}
-}
+std::map <char*, unsigned> NASeq::Copies;
 
-int NASeq::computeEditDistance(const NASeq& a, const NASeq& b, int k)
+//inline int min(int a, int b)
+//{
+//	return a > b ? b : a;
+//}
+
+//inline void CountTrailingZeroes(uint64 x, unsigned long &z)
+//{
+//	for (z = 1; z <= 64; ++z)
+//	{
+//		if (((x >> z) << z) != x)
+//		{
+//			--z;
+//			return;
+//		}
+//	}
+//}
+
+int NASeq::computeEditDistance(const char* text, int textLen, const char* pattern, int patternLen, int k, short L[MAX_K + 1][2 * MAX_K + 1])
 {
 	for (int i = 0; i < MAX_K + 1; i++) {
 		for (int j = 0; j < 2 * MAX_K + 1; j++) {
@@ -53,20 +85,21 @@ int NASeq::computeEditDistance(const NASeq& a, const NASeq& b, int k)
 	return MAX_K;
 	}*/
 	k = min(MAX_K - 1, k); // enforce limit even in non-debug builds
-	if (a.length == 0 || b.length == 0) {
+	if (NULL == text) {
+		// This happens when we're trying to read past the end of the genome.
 		return -1;
 	}
-	unsigned p = 0, t = 0;
-	int end = min(a.length, b.length);
-	while (p < end) {
-		uint64 xb, xa;
-		xb = b.get32bit(p); xa = a.get32bit(t);
-		uint64 x = b.get32bit(p) ^ a.get32bit(t);
+	const char* p = pattern;
+	const char* t = text;
+	int end = min(patternLen, textLen);
+	const char* pend = pattern + end;
+	while (p < pend) {
+		uint64 x = *((const uint64*)p) ^ *((const uint64*)t);
 		if (x) {
 			unsigned long zeroes;
 			CountTrailingZeroes(x, zeroes);
-			zeroes >>= 2;
-			L[0][MAX_K] = min((int)(p) + (int)zeroes, end);
+			zeroes >>= 3;
+			L[0][MAX_K] = min((int)(p - pattern) + (int)zeroes, end);
 			goto done1;
 		}
 		p += 8;
@@ -75,7 +108,7 @@ int NASeq::computeEditDistance(const NASeq& a, const NASeq& b, int k)
 	L[0][MAX_K] = end;
 done1:
 	if (L[0][MAX_K] == end) {
-		int result = (b.length >end ? b.length - end : 0); // Could need some deletions at the end, a is the text
+		int result = (patternLen > end ? patternLen - end : 0); // Could need some deletions at the end
 		return result;
 	}
 
@@ -90,22 +123,23 @@ done1:
 			if (right > best)
 				best = right;
 
-			unsigned p = best;
-			unsigned t = d + best;
-			if (b[p].val == a[t].val) {
-				int end = min(b.length, a.length - d);
+			const char* p = pattern + best;
+			const char* t = (text + d) + best;
+			if (*p == *t) {
+				int end = min(patternLen, textLen - d);
+				const char* pend = pattern + end;
 
 				while (true) {
-					uint64 x = b.get32bit(p) ^ a.get32bit(t);
+					uint64 x = *((const uint64*)p) ^ *((const uint64*)t);
 					if (x) {
 						unsigned long zeroes;
 						CountTrailingZeroes(x, zeroes);
-						zeroes >>= 2;
-						best = min((int)(p)+(int)zeroes, end);
+						zeroes >>= 3;
+						best = min((int)(p - pattern) + (int)zeroes, end);
 						break;
 					}
 					p += 8;
-					if (p >= end) {
+					if (p >= pend) {
 						best = end;
 						break;
 					}
@@ -113,7 +147,7 @@ done1:
 				}
 			}
 
-			if (best == b.length) {
+			if (best == patternLen) {
 				return e;
 			}
 			L[e][MAX_K + d] = best;
@@ -123,37 +157,43 @@ done1:
 }
 
 NASeq::NASeq()
-:isRNA(false), isSkipped(false), LengthInByte(0), length(0), seq(nullptr), originalSeq(nullptr), isSubString(false)
+:length(0), seq(nullptr), isSubString(false), isQuickCopyable(false), OriginalSeq(nullptr)
 {
 }
 
-NASeq::NASeq(const char * sseq, unsigned slength)
-: isRNA(false), isSkipped(false), originalSeq(nullptr), isSubString(false)
+NASeq::NASeq(const char * sseq, unsigned slength, bool isQCB)
+: isSubString(false), OriginalSeq(nullptr), isQuickCopyable(isQCB)
 {
 	length = slength == 0 ? strlen(sseq) : slength;
-	if (length == 0)
+	if (length == 0) return;
+	seq = (char*)malloc(length*sizeof(char));
+	memcpy(seq, sseq, length*sizeof(char));
+	unsigned i;
+	if (length > 8)
+	for (i = 0; i < length - 8; i += 8)
 	{
-		LengthInByte = 0;
-		seq = nullptr;
-		return;
+		*((unsigned long long*)(seq + i)) &= 0xdfdfdfdfdfdfdfdf;
 	}
-	LengthInByte = length / 2 + length % 2;
-	seq = (base*)malloc(LengthInByte*sizeof(base));
-	for (unsigned i = 0; i < LengthInByte; ++i)
+	for (; i < length; ++i)
 	{
-		seq[i] = sseq + i * 2;
+		seq[i] &= 0xdf;
 	}
-	originalSeq = seq;
-	copies[originalSeq] = 1;
+
+	OriginalSeq = seq;
+	if (isQuickCopyable)
+	{
+		Copies[OriginalSeq] = 1;
+	}
 }
 
-NASeq::NASeq(const NASeq& b)
+NASeq::NASeq(const NASeq& b, bool isQCB)
 {
 	*this = b;
+	isQuickCopyable = isQCB;
 }
 
-NASeq::NASeq(FILE * ifile, bool isFQ)
-:originalSeq(nullptr), isSubString(false)
+NASeq::NASeq(FILE * ifile, bool isFQ, char * seqName)
+: isSubString(false), seq(nullptr), OriginalSeq(nullptr)
 {
 	if (isFQ)
 	{
@@ -162,6 +202,7 @@ NASeq::NASeq(FILE * ifile, bool isFQ)
 			throw - 102;
 			return;
 		}
+		isQuickCopyable = false;
 		fscanf(ifile, "%s", buffer);
 		if (feof(ifile)) return;
 		if (buffer[0] != '@')
@@ -169,8 +210,31 @@ NASeq::NASeq(FILE * ifile, bool isFQ)
 			throw - 112;//file content error
 			return;
 		}
+		if (seqName != nullptr)
+		{
+			buffer[MAX_NAME_LENGTH - 1] = '\0';
+			strcpy(seqName, buffer + 1);
+		}
 		fscanf(ifile, "%s", buffer);
-		NASeq(buffer);
+		length = strlen(buffer);
+		if (length == 0)
+		{
+			seq = nullptr;
+			return;
+		}
+		seq = (char*)malloc(length*sizeof(char));
+		memcpy(seq, buffer, length*sizeof(char));
+		unsigned i;
+		if (length > 8)
+		for (i = 0; i < length - 8; i += 8)
+		{
+			*((unsigned long long*)(seq + i)) &= 0xdfdfdfdfdfdfdfdf;
+		}
+		for (; i < length; ++i)
+		{
+			seq[i] &= 0xdf;
+		}
+
 		fscanf(ifile, "%s", buffer);
 		fscanf(ifile, "%s", buffer);
 	}
@@ -181,12 +245,12 @@ NASeq::NASeq(FILE * ifile, bool isFQ)
 			throw - 102;//file pointer is null
 			return;
 		}
+		isQuickCopyable = true;
 		//allocate space
 		length = 0;
-		LengthInByte = 0;
 		fseek(ifile, 0, SEEK_END);
 		//seq = new base[ftell(ifile) / 2 + 1];//the sizeof(base) is 1. The fa file always provide a very long sequence, in this case, we don't mind to allocate a little more space for restoring it
-		seq = (base*)malloc(ftell(ifile) / 2 + 1);//oddly, the malloc is far far more faster than the new operater
+		seq = (char*)malloc(ftell(ifile) + 1);//oddly, the malloc is far far more faster than the new operater
 		if (seq == nullptr)
 		{
 			fclose(ifile);
@@ -204,313 +268,131 @@ NASeq::NASeq(FILE * ifile, bool isFQ)
 			unsigned slen = strlen(buffer);
 			if (slen == 0)
 				continue;
-			if (isSkipped == (length % 2 == 0))
-				//Ä©Î²ÓÐ¿Õ
+			memcpy(seq + length, buffer, slen*sizeof(char));
+			unsigned i;
+			if (slen > 8)
+			for (i = 0; i < slen - 8; i += 8)
 			{
-				seq[LengthInByte - 1].val &= 0xf0;
-				switch ((*buffer) & 0xDF)
-				{
-				case 'A':
-					seq[LengthInByte - 1].val += 0x08;
-					break;
-				case 'T':
-				case 'U':
-					seq[LengthInByte - 1].val += 0x0B;
-					break;
-				case 'G':
-					seq[LengthInByte - 1].val += 0x09;
-					break;
-				case 'C':
-					seq[LengthInByte - 1].val += 0x0a;
-					break;
-				case 'N':
-					seq[LengthInByte - 1].val += 0x0c;
-					break;
-				default:
-					throw 1;
-					break;
-				}
-				for (unsigned i = 0; i != (slen - 1) / 2; ++i)
-				{
-					seq[LengthInByte + i] = buffer + 1 + i * 2;
-				}
-				if (slen % 2 == 0)
-				{
-					seq[LengthInByte + slen / 2 - 1] = buffer[slen - 1];
-				}
-				LengthInByte += slen / 2;
+				*((unsigned long long*)(seq + length + i)) &= 0xdfdfdfdfdfdfdfdf;
 			}
-			else
-				//Ä©Î²ÎÞ¿Õ
+			for (; i < slen; ++i)
 			{
-				for (unsigned i = 0; i != slen / 2 + slen % 2; ++i)
-				{
-					seq[LengthInByte + i] = buffer + 2 * i;
-				}
-				LengthInByte += slen / 2 + slen % 2;
+				seq[i + length] &= 0xdf;
 			}
+
 			length += slen;
 		}
 	}
-	originalSeq = seq;
-	copies[originalSeq] = 1;
+
+	OriginalSeq = seq;
+	if (isQuickCopyable)
+	{
+		Copies[OriginalSeq] = 1;
+	}
 }
 
 NASeq::~NASeq()
 {
-	if (!isSubString)
-	if (--copies[originalSeq] == 0)
+	if (seq != nullptr)
 	{
-		delete (base*)originalSeq;
-		copies.erase(originalSeq);
+		if (isQuickCopyable)
+		{
+			if (!isSubString)
+			if (--Copies[OriginalSeq] == 0)
+			{
+				delete OriginalSeq;
+				Copies.erase(OriginalSeq);
+			}
+		}
+		else
+		{
+			delete seq;
+		}
 	}
 }
 
 NASeq& NASeq::operator=(const NASeq & b)
 {
+	if (b.seq == nullptr)
+	{
+		seq = nullptr;
+		return *this;
+	}
 	if (b.isSubString)
 	{
 		length = b.length;
-		LengthInByte = b.LengthInByte;
 		seq = b.seq;
-		isSkipped = b.isSkipped;
 		isSubString = b.isSubString;
 		return (*this);
 	}
-	++copies[b.originalSeq];
-	originalSeq = b.originalSeq;
-	isRNA = b.isRNA;
-	isSkipped = b.isSkipped;
-	length = b.length;
-	LengthInByte = b.LengthInByte;
-	seq = b.seq;
-	isSubString = b.isSubString;
+	if (b.isQuickCopyable)
+	{
+		++Copies[b.OriginalSeq];
+		OriginalSeq = b.OriginalSeq;
+		length = b.length;
+		seq = b.seq;
+		isSubString = b.isSubString;
+		isQuickCopyable = b.isQuickCopyable;
+	}
+	else
+	{
+		if (length >= b.length&&!isQuickCopyable)
+		{
+			length = b.length;
+			memcpy(seq, b.seq, length);
+			return *this;
+		}
+		length = b.length;
+		seq = (char*)malloc(length);
+		memcpy(seq, b.seq, length);
+		OriginalSeq = seq;
+		isSubString = b.isSubString;
+		isQuickCopyable = b.isQuickCopyable;
+	}
 	return *this;
 }
 
-/*the old version
-NASeq& NASeq::operator=(NASeq & b)
-{
-++b.copies;
-isRNA = b.isRNA;
-isSkipped = b.isSkipped;
-length = b.length;
-LengthInByte = b.LengthInByte;
-seq = (base*)malloc(LengthInByte*sizeof(base));
-for (unsigned i = 0; i != LengthInByte; ++i)
-{
-seq[i] = b.seq[i];
-}
-copies = b.copies;
-return *this;
-}
-*/
-
 NASeq NASeq::operator~()
 {
-	return reverse();
+	if (isQuickCopyable)
+	{
+		isQuickCopyable = false;
+		NASeq rOne(*this);
+		isQuickCopyable = true;
+		rOne.reverse();
+		return rOne;
+	}
+	else
+	{
+		NASeq rOne(*this);
+		rOne.reverse();
+		return rOne;
+	}
 }
 
 NASeq& NASeq::reverse()
 {
-	for (unsigned i = 0; i != LengthInByte; ++i)
+	char tmp;
+	for (unsigned i = 0; i != length / 2; ++i)
 	{
-		~seq[i];
+		tmp = seq[i];
+		seq[i] = Opposite[seq[length - i - 1]];
+		seq[length - i - 1] = Opposite[tmp];
+	}
+	if (length % 2 != 0)
+	{
+		seq[length / 2 + 1] = Opposite[seq[length / 2 + 1]];
 	}
 	return *this;
 }
 
-/*
-NASeq& NASeq::append(const NASeq& b)
-{
-if (b.length == 0)
-return *this;
-if (isSkipped == (length % 2 == 0))
-//Ä©Î²ÓÐ¿Õ
-{
-seq = (base*)realloc(seq, LengthInByte + b.length / 2);//sizeof(base) is 1
-if (b.isSkipped)
-{
-seq[LengthInByte - 1].val &= 0xf0;
-seq[LengthInByte - 1].val |= b.seq[0].val & 0x0f;
-for (unsigned i = 1; i < b.LengthInByte; ++i)
-{
-seq[LengthInByte + i - 1] = b.seq[i];
-}
-}
-else
-{
-seq[LengthInByte - 1].val &= 0xf0;
-seq[LengthInByte - 1].val |= b.seq[0].val >> 4;
-for (unsigned i = 0; i != b.LengthInByte - 1; ++i)
-{
-seq[LengthInByte + i].val = b.seq[i].val << 4 + b.seq[i + 1].val >> 4;
-}
-if (b.length % 2 == 0)
-{
-seq[LengthInByte + b.LengthInByte - 1].val = b.seq[b.LengthInByte - 1].val << 4;
-}
-}
-LengthInByte += b.length / 2;
-}
-else
-//Ä©Î²ÎÞ¿Õ
-{
-seq = (base*)realloc(seq, LengthInByte + b.length / 2 + b.length % 2);//sizeof(base) is 1
-if (b.isSkipped)
-{
-for (unsigned i = 0; i != b.LengthInByte - 1; ++i)
-{
-seq[LengthInByte + i].val = b.seq[i].val << 4 | (b.seq[i + 1].val >> 4);
-}
-if (b.length % 2 == 1)
-{
-seq[LengthInByte + b.LengthInByte - 1].val = b.seq[LengthInByte - 1].val << 4;
-}
-}
-else
-{
-for (unsigned i = 0; i != b.LengthInByte; ++i)
-{
-seq[LengthInByte + i] = b.seq[i];
-}
-}
-LengthInByte += b.length / 2 + b.length % 2;
-}
-length += b.length;
-return *this;
-}
-
-NASeq& NASeq::append(const char * sseq, unsigned slen)
-{
-if (slen == 0)
-{
-slen = strlen(sseq);
-}
-if (slen == 0)
-return *this;
-if (isSkipped == (length % 2 == 0))
-//Ä©Î²ÓÐ¿Õ
-{
-seq = (base*)realloc(seq, LengthInByte + slen / 2);//sizeof(base) is 1
-seq[LengthInByte - 1].val &= 0xf0;
-switch ((*sseq) & 0xDF)
-{
-case 'A':
-seq[LengthInByte - 1].val += 0x08;
-break;
-case 'T':
-case 'U':
-seq[LengthInByte - 1].val += 0x0B;
-break;
-case 'G':
-seq[LengthInByte - 1].val += 0x09;
-break;
-case 'C':
-seq[LengthInByte - 1].val += 0x0a;
-break;
-case 'N':
-seq[LengthInByte - 1].val += 0x0c;
-break;
-default:
-throw 1;
-break;
-}
-for (unsigned i = 0; i != (slen - 1) / 2; ++i)
-{
-seq[LengthInByte + i] = sseq + 1 + i * 2;
-}
-if (slen % 2 == 0)
-{
-seq[LengthInByte + slen / 2 - 1] = sseq[slen - 1];
-}
-LengthInByte += slen / 2;
-}
-else
-//Ä©Î²ÎÞ¿Õ
-{
-seq = (base*)realloc(seq, LengthInByte + slen / 2 + slen % 2);//sizeof(base) is 1
-for (unsigned i = 0; i != slen / 2 + slen % 2; ++i)
-{
-seq[LengthInByte + i] = sseq + 2 * i;
-}
-LengthInByte += slen / 2 + slen % 2;
-}
-length += slen;
-return *this;
-}
-*/
-
-/*
-char * NASeq::toString(unsigned pos, unsigned length)
-{
-if (length == 0)
-{
-length = this->length - pos;
-}
-//#################################################
-//note: need futher job to handle the memory
-//####################################################
-char * str = new char[length + 1];
-if (isRNA)
-{
-if (isSkipped)
-{
-for (unsigned i = 0; i != length; ++i)
-{
-if (pos + i >= this->length) break;
-str[i] = RNAcharset[(pos + i) % 2 == 0 ? seq[(pos + i) / 2].val & 0x0F : seq[(pos + i) / 2 + 1].val >> 4];
-}
-}
-else
-{
-for (unsigned i = 0; i != length; ++i)
-{
-if (pos + i >= this->length) break;
-str[i] = RNAcharset[(pos + i) % 2 == 0 ? seq[(pos + i) / 2].val >> 4 : seq[(pos + i) / 2].val & 0x0F];
-}
-}
-}
-else
-{
-if (isSkipped)
-{
-for (unsigned i = 0; i != length; ++i)
-{
-if (pos + i >= this->length) break;
-str[i] = DNAcharset[(pos + i) % 2 == 0 ? seq[(pos + i) / 2].val & 0x0F : seq[(pos + i) / 2 + 1].val >> 4];
-}
-}
-else
-{
-for (unsigned i = 0; i != length; ++i)
-{
-if (pos + i >= this->length) break;
-str[i] = DNAcharset[(pos + i) % 2 == 0 ? seq[(pos + i) / 2].val >> 4 : seq[(pos + i) / 2].val & 0x0F];
-}
-}
-}
-str[length] = '\0';
-return str;
-}
-*/
-
-base NASeq::operator[] (unsigned i) const
-{
-	if (isSkipped)
-	{
-		return base(seq[i / 2 + i % 2].val << (i % 2 == 0 ? 4 : 0));
-	}
-	else
-	{
-		return base(seq[i / 2].val << (i % 2 == 0 ? 0 : 4));
-	}
-}
-
-
 NASeq NASeq::getSubSequence(int start, unsigned length)
 {
 	assert(length != 0 && this->length != 0);
+	if (!isQuickCopyable)
+	{
+		return NASeq();
+	}
 	if (start<0) start = 0;
 	unsigned start_loc = start;
 	NASeq sub;
@@ -519,26 +401,19 @@ NASeq NASeq::getSubSequence(int start, unsigned length)
 	//sub.originalSeq = originalSeq;
 	//++copies[originalSeq];
 	sub.isSubString = true;
-	if (isSkipped)
+
+	if (isQuickCopyable)
 	{
-		sub.seq = seq + sub.length / 2 + sub.length % 2;
-		sub.isSkipped = start_loc % 2 == 0;
-		sub.LengthInByte = (sub.isSkipped ? 1 : 0) + sub.length / 2 + (sub.isSkipped ? 0 : sub.length % 2);
+		sub.seq = seq;
 	}
-	else
-	{
-		sub.seq = seq + start_loc / 2;
-		sub.isSkipped = start_loc % 2;
-		sub.LengthInByte = (sub.isSkipped ? 1 : 0) + sub.length / 2 + (sub.isSkipped ? 0 : sub.length % 2);
-	}
+
 	return sub;
 }
 
-
 bool NASeq::saveToFile(FILE* file)
 {
-	fprintf(file, "%d %d %u %u\n", isSkipped, isRNA, length, LengthInByte);
-	if (fwrite(seq, sizeof(base), LengthInByte, file) != LengthInByte)
+	fprintf(file, "%d %u\n", isQuickCopyable, length);
+	if (fwrite(seq, sizeof(char), length, file) != length)
 	{
 		fclose(file);
 		throw - 110;//Ð´ÈëNASeqÊ§°Ü£¡
@@ -550,12 +425,13 @@ bool NASeq::saveToFile(FILE* file)
 bool NASeq::loadFromFile(FILE* file)
 {
 	if (seq != nullptr) return false;
-	fscanf(file, "%d %d %u %u\n", &isSkipped, &isRNA, &length, &LengthInByte);
-	seq = (base*)malloc(LengthInByte);
-	originalSeq = seq;
-	copies[originalSeq] = 1;
+	fscanf(file, "%d %u\n", &isQuickCopyable, &length);
+	seq = (char*)malloc(length);
+	OriginalSeq = seq;
+	if (isQuickCopyable)
+		Copies[OriginalSeq] = 1;
 	isSubString = false;
-	if (fread(seq, sizeof(base), LengthInByte, file) != LengthInByte)
+	if (fread(seq, sizeof(char), length, file) != length)
 	{
 		fclose(file);
 		throw - 110;//Ð´ÈëNASeqÊ§°Ü£¡
@@ -564,82 +440,77 @@ bool NASeq::loadFromFile(FILE* file)
 	return true;
 }
 
-unsigned long long NASeq::get64bit(unsigned index)const
+unsigned long long NASeq::getSeed(unsigned start, unsigned SeedLength) const
 {
-	if (isSkipped)
+	if (start + SeedLength > length) throw - 201;
+	if (SeedLength == 0) SeedLength = length - start;
+	if (SeedLength > 32) SeedLength = 32;
+	unsigned long long result = 0;
+	for (unsigned i = 0; i != SeedLength; ++i)
 	{
-		if (index % 2 == 0)
-		{
-			unsigned long long tmp = *((unsigned long long *)(seq + index / 2));
-			tmp << 4;
-			if (index + 16 > length) return tmp;
-			else
-			{
-				tmp |= ((seq + (index / 2 + 8))->val) >> 4;
-				return tmp;
-			}
-		}
-		else
-		{
-			return *((unsigned long long *)(seq + index / 2 + 1));
-		}
+		result <<= 2;
+		result += NANumber[seq[start + i]];
 	}
-	else
-	{
-		if (index % 2 == 0)
-		{
-			return *((unsigned long long *)(seq + index / 2));
-		}
-		else
-		{
-			unsigned long long tmp = *((unsigned long long *)(seq + index / 2));
-			tmp << 4;
-			if (index + 16 > length) return tmp;
-			else
-			{
-				tmp |= ((seq + (index / 2 + 8))->val) >> 4;
-				return tmp;
-			}
-		}
-	}
+	return result;
 }
 
-unsigned long long NASeq::get32bit(unsigned index)const
+bool NASeq::isASeed(unsigned start, unsigned SeedLength) const
 {
-	if (isSkipped)
+	if (start + SeedLength > length)
 	{
-		if (index % 2 == 0)
-		{
-			unsigned long long tmp = *((unsigned*)(seq + index / 2));
-			tmp << 4;
-			if (index + 8 > length) return tmp;
-			else
-			{
-				tmp |= ((seq + (index / 2 + 4))->val) >> 4;
-				return tmp;
-			}
-		}
-		else
-		{
-			return *((unsigned long long *)(seq + index / 2 + 1));
-		}
+		return false;
 	}
-	else
+	if (SeedLength == 0)
 	{
-		if (index % 2 == 0)
-		{
-			return *((unsigned long long *)(seq + index / 2));
-		}
-		else
-		{
-			unsigned long long tmp = *((unsigned long long *)(seq + index / 2));
-			tmp << 4;
-			if (index + 8 > length) return tmp;
-			else
-			{
-				tmp |= ((seq + (index / 2 + 4))->val) >> 4;
-				return tmp;
-			}
-		}
+		SeedLength = length - start;
 	}
+	if (SeedLength > 32) SeedLength = 32;
+	for (int i = 0; i != SeedLength; ++i)
+	{
+		if (LegibleSeed[seq[i + start]] == 0) return false;
+	}
+	return true;
+}
+
+bool NASeq::readNext(FILE* ifile, char * seqName)
+{
+	if (ifile == nullptr)
+	{
+		throw - 102;
+		return false;
+	}
+	isQuickCopyable = false;
+	fscanf(ifile, "%s", buffer);
+	if (feof(ifile)) return false;
+	if (buffer[0] != '@')
+	{
+		throw - 112;//file content error
+		return false;
+	}
+	if (seqName != nullptr)
+	{
+		buffer[MAX_NAME_LENGTH - 1] = '\0';
+		strcpy(seqName, buffer + 1);//the first character is '@'
+	}
+	fscanf(ifile, "%s", buffer);
+	unsigned bufflen = strlen(buffer);
+	if (length >= bufflen)
+	{
+		memcpy(seq, buffer, bufflen*sizeof(char));
+		fscanf(ifile, "%s", buffer);
+		fscanf(ifile, "%s", buffer);
+		return true;
+	}
+	length = bufflen;
+	if (length == 0)
+	{
+		seq = nullptr;
+		return true;
+	}
+	seq = (char*)malloc(length*sizeof(char));
+	memcpy(seq, buffer, length*sizeof(char));
+
+	fscanf(ifile, "%s", buffer);
+	fscanf(ifile, "%s", buffer);
+	return true;
 }

@@ -1,25 +1,65 @@
-#include <iostream>
+//#include <iostream>
 #include "seed.h"
 #include <stdio.h>
 #include <time.h>
-#include <thread>
 #include <vector>
-#include <mutex>
 #include "base.h"
 #include "NASeq.h"
 #include "Genome.h"
 #include "Indexer.h"
+#include "Aligner.h"
+#include <omp.h>
 
 using namespace std;
 
-
-const char *SNAP_VERSION = "0.11";
+const char *SNAPI_VERSION = "0.01";
 time_t start, stop;
 
 unsigned threadNum=1;
 
-vector<thread> threads;
-mutex mtxR,mtxW;
+void initiate()
+{
+	NASeq::LegibleSeed['A'] = 1;
+	NASeq::LegibleSeed['T'] = 1;
+	NASeq::LegibleSeed['G'] = 1;
+	NASeq::LegibleSeed['C'] = 1;
+	NASeq::LegibleSeed['a'] = 1;
+	NASeq::LegibleSeed['t'] = 1;
+	NASeq::LegibleSeed['g'] = 1;
+	NASeq::LegibleSeed['c'] = 1;
+	NASeq::NANumber['A'] = 0;
+	NASeq::NANumber['T'] = 3;
+	NASeq::NANumber['G'] = 1;
+	NASeq::NANumber['C'] = 2;
+	NASeq::NANumber['a'] = 0;
+	NASeq::NANumber['t'] = 3;
+	NASeq::NANumber['g'] = 1;
+	NASeq::NANumber['c'] = 2;
+	NASeq::Opposite['A'] = 'T';
+	NASeq::Opposite['T'] = 'A';
+	NASeq::Opposite['G'] = 'C';
+	NASeq::Opposite['C'] = 'G';
+	NASeq::Opposite['a'] = 't';
+	NASeq::Opposite['t'] = 'a';
+	NASeq::Opposite['g'] = 'c';
+	NASeq::Opposite['c'] = 'g';
+	Aligner::SeedsStartPositions[1] = 0.0;
+	Aligner::SeedsStartPositions[2] = 0.25;
+	Aligner::SeedsStartPositions[3] = 0.75;
+	Aligner::SeedsStartPositions[4] = 0.125;
+	Aligner::SeedsStartPositions[5] = 3.0 / 8.0;
+	Aligner::SeedsStartPositions[6] = 5.0 / 8.0;
+	Aligner::SeedsStartPositions[7] = 7.0 / 8.0;
+	Aligner::SeedsStartPositions[8] = 1.0 / 16.0;
+	Aligner::SeedsStartPositions[9] = 3.0 / 16.0;
+	Aligner::SeedsStartPositions[10] = 5.0 / 16.0;
+	Aligner::SeedsStartPositions[11] = 7.0 / 16.0;
+	Aligner::SeedsStartPositions[12] = 9.0 / 16.0;
+	Aligner::SeedsStartPositions[13] = 11.0 / 16.0;
+	Aligner::SeedsStartPositions[14] = 13.0 / 16.0;
+	Aligner::SeedsStartPositions[15] = 15.0 / 16.0;
+
+}
 
 static void usage()
 {
@@ -35,115 +75,52 @@ static void usage()
 void buildIndex(int argc, const char **argv);
 void runAlign(int, const char **);
 
-int acomputeEditDistance(const char* text, int textLen, const char* pattern, int patternLen, int k)
-{
-	extern short L[MAX_K + 1][2 * MAX_K + 1];
-	for (int i = 0; i < MAX_K + 1; i++) {
-		for (int j = 0; j < 2 * MAX_K + 1; j++) {
-			L[i][j] = -2;
-		}
-	}
-	/*if (k >= MAX_K)
-	{
-	throw - 113;
-	return MAX_K;
-	}*/
-	extern int min(int, int);
-	extern void CountTrailingZeroes(uint64, unsigned long &);
-	k = min(MAX_K - 1, k); // enforce limit even in non-debug builds
-	if (NULL == text) {
-		// This happens when we're trying to read past the end of the genome.
-		return -1;
-	}
-	const char* p = pattern;
-	const char* t = text;
-	int end = min(patternLen, textLen);
-	const char* pend = pattern + end;
-	while (p < pend) {
-		uint64 x = *((uint64*)p) ^ *((uint64*)t);
-		if (x) {
-			unsigned long zeroes;
-			CountTrailingZeroes(x, zeroes);
-			zeroes >>= 3;
-			L[0][MAX_K] = min((int)(p - pattern) + (int)zeroes, end);
-			goto done1;
-		}
-		p += 8;
-		t += 8;
-	}
-	L[0][MAX_K] = end;
-done1:
-	if (L[0][MAX_K] == end) {
-		int result = (patternLen > end ? patternLen - end : 0); // Could need some deletions at the end
-		return result;
-	}
-
-	for (int e = 1; e <= k; e++) {
-		// Search d's in the order 0, 1, -1, 2, -2, etc to find an alignment with as few indels as possible.
-		for (int d = 0; d != e + 1; d = (d > 0 ? -d : -d + 1)) {
-			int best = L[e - 1][MAX_K + d] + 1; // up
-			int left = L[e - 1][MAX_K + d - 1];
-			if (left > best)
-				best = left;
-			int right = L[e - 1][MAX_K + d + 1] + 1;
-			if (right > best)
-				best = right;
-
-			const char* p = pattern + best;
-			const char* t = (text + d) + best;
-			if (*p == *t) {
-				int end = min(patternLen, textLen - d);
-				const char* pend = pattern + end;
-
-				while (true) {
-					uint64 x = *((uint64*)p) ^ *((uint64*)t);
-					if (x) {
-						unsigned long zeroes;
-						CountTrailingZeroes(x, zeroes);
-						zeroes >>= 3;
-						best = min((int)(p - pattern) + (int)zeroes, end);
-						break;
-					}
-					p += 8;
-					if (p >= pend) {
-						best = end;
-						break;
-					}
-					t += 8;
-				}
-			}
-
-			if (best == patternLen) {
-				return e;
-			}
-			L[e][MAX_K + d] = best;
-		}
-	}
-	return -1;
-}
-
 int main(int argc, const char **argv)
 {
-	/*Indexer theIndexer;
-	theIndexer.readReference("G:\\");
-	theIndexer.buildIndex();
+	initiate();
+	//Indexer theIndexer;
+	////theIndexer.readReference("G:\\");
+	////theIndexer.buildIndex();
 
-	theIndexer.saveToFile("F:\\save\\save");*/
-	//theIndexer.loadFromFile("F:\\save\\save");
+	//theIndexer.loadFromFile("F:\\save\\OriginalChr1\\save");
+	////theIndexer.loadFromFile("F:\\save\\3rdCutEdition\\hMax100chr1\\cutedsave");
+	//
+	////theIndexer.throughlyCut(0, "F:\\save\\ThroughlyCut\\chr21\\cutedsave");
 
-	char astr[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	uint64 bstr = *(uint64*)astr;
+	//theIndexer.cutIndex(Indexer::hMax, "F:\\save\\3rdCutEdition\\hMax100chr1\\cutedsave");
+	////theIndexer.saveToFile("F:\\save\\OriginalChr1\\save");
+	////theIndexer.cutIndex(1000);
+	////char astr[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	////uint64 bstr = *(uint64*)astr;
 
-	NASeq a("GAATC"), b("GCATC");
-	cout << acomputeEditDistance("GAATC", 5, "GCATC", 5, 10);
-	cout << NASeq::computeEditDistance(a, b, 10);
+	//Aligner theAligner;
+	//theAligner.singleAlign("E:\\Programs\\Bioinformatics\\data\\hg19\\chr1.fq","G:\\result.sam");
+	////theAligner.singleAlign("G:\\chr21.fq", "G:\\result.sam");
+	//return 0;
+//	//unsigned index;
+//	//short L[MAX_K + 1][2 * MAX_K + 1];
+//	//NASeq aSeq("GGGGACTGTTGTGGGGTGGGGGGAGGGGGGAGGGATAGCATTGGGAGATATACCTAATGCTAGATGATGAGTTAGTGGGTGCAGCGCACCAGCATGGCAC");
+//	//aSeq.reverse();
+//	//unsigned UnscoredMostHitedLocation = 9656354;
+//	//unsigned chrNum = Indexer::Reference->getChrNumber(UnscoredMostHitedLocation);
+//	//cout<<NASeq::computeEditDistance(Indexer::Reference->chrs[chrNum].sequence.seq + UnscoredMostHitedLocation - Indexer::Reference->chrs[chrNum].start_location, aSeq.length, aSeq.seq, aSeq.length, 100, L);
+//	//UnscoredMostHitedLocation = 23032888;
+//	//chrNum = Indexer::Reference->getChrNumber(UnscoredMostHitedLocation);
+//	//cout << endl << NASeq::computeEditDistance(Indexer::Reference->chrs[chrNum].sequence.seq + UnscoredMostHitedLocation - Indexer::Reference->chrs[chrNum].start_location, aSeq.length, aSeq.seq, aSeq.length, 100, L);
+//	//cout << endl;
+//	//while (true)
+//	//{
+//	//	cin >> index;for (unsigned i = index; i < index+100; ++i)
+//	//	{
+//	//		cout << Indexer::Reference->chrs[chrNum].sequence.seq[i - Indexer::Reference->chrs[chrNum].start_location];
+//	//	}
+//	//	cout << endl;
+//	//}
+//
+//	return 0;
+//}
 
-	return 0;
-}
-	/*
-	cout << sizeof(aseq);
-	printf("Welcome to SNAP version %s.\n\n", SNAP_VERSION);
-	cin >> start;
+	printf("Welcome to SNAPI version %s.\n\n", SNAPI_VERSION);
 	try
 	{
 		if (argc < 2) {
@@ -165,45 +142,20 @@ int main(int argc, const char **argv)
 		printError(err);
 		return 1;
 	}
-	///*MyIndex.build("chr21.fa");
-	//cout << MyIndex.Index[1].key << ' ' << MyIndex.Index[1].value << endl;
-	//cout << (MyIndex.Index + 13)->key << endl;
-	//seed aseed("aaaaaaaaaaaaaaaaaaaa");
-	//unsigned * a;
-	//unsigned num=MyIndex.lookup(aseed.toNum(),a);
-	//cout << num;
-	//MyIndex.save2file("chr21.index");
-	//free(a);*/
-	//MyIndex.readFromFile("chr21.index");
-	////cout << MyIndex.getSize();
-	//sequence seq;
-	//FILE* fq = fopen("chr21.fq", "r");
-	//if (nullptr == fq)
-	//{
-	//	cout << "error";
-	//	return 0;
-	//}
-	//while(seq.readNext(fq))
-	//seq.align(MyIndex);
-	//if (sequence::outputFile != nullptr)
-	//{
-	//	fclose(sequence::outputFile);
-	//}
-	//fclose(fq);
-
-/*
 	return 0;
 }
 
 static void iusage()
 {
 	fprintf(stderr,
-		"Usage: snap index <input.fa> <output-file> [<options>]\n"
+		"Usage: snapi index <input.fa> <output-file> [<options>]\n"
 		"Options:\n"
-		"  -s  seed size (default: %d)\n"
-		"  -h  hash table slack (default: %.1f)\n",
-		seed::length,
-		index::slack);
+		"  -s  seed size (default: %u)\n"
+		"  -h  hMax (default: %u)\n"
+		"  -C  continue cutting (the <input.fa> will be seen as uncuted or unfinished cutted index)\n"
+		"  -X  no cutting, build index the old fashioned way (won't cut the index after build)\n",
+		seed::seedLen,
+		Indexer::hMax);
 	exit(1);
 }
 
@@ -216,10 +168,12 @@ void buildIndex(int argc, const char **argv)
 	const char *fastaFile = argv[0];
 	const char *outputFile = argv[1];
 
+	unsigned C = false, X = false;
+
 	for (int n = 2; n < argc; n++) {
 		if (strcmp(argv[n], "-s") == 0) {
 			if (n + 1 < argc) {
-				seed::length = atoi(argv[n + 1]);
+				seed::seedLen = atoi(argv[n + 1]);
 				n++;
 			}
 			else {
@@ -228,12 +182,18 @@ void buildIndex(int argc, const char **argv)
 		}
 		else if (strcmp(argv[n], "-h") == 0) {
 			if (n + 1 < argc) {
-				index::slack = atof(argv[n + 1]);
+				Indexer::hMax = atof(argv[n + 1]);
 				n++;
 			}
 			else {
 				iusage();
 			}
+		}
+		else if (strcmp(argv[n], "-C") == 0) {
+			C = true;
+		}
+		else if (strcmp(argv[n], "-X") == 0) {
+			X = true;
 		}
 		else {
 			fprintf(stderr, "Invalid argument: %s\n\n", argv[n]);
@@ -241,35 +201,71 @@ void buildIndex(int argc, const char **argv)
 		}
 	}
 
-	if (seed::length < 16 || seed::length > MAX_SEED_LENGTH) {
+	if (seed::seedLen < 16 || seed::seedLen > MAX_SEED_LENGTH) {
 		// Right now there's some hard-coded stuff, like the seed warp table, that
 		// does not work for seed lengths outside the range of 16-23.
 		fprintf(stderr, "Seed length must be between 16 and %d\n",MAX_SEED_LENGTH);
 		exit(1);
 	}
-
-	printf("Building index from FASTA file '%s'\n", fastaFile);
-	printf("Hash table slack %lf\nBuilding...\n", index::slack);
-	start = time(NULL);
-	MyIndex.build(fastaFile);
-	stop = time(NULL);
-	printf("Hash table building succeeded! Time spent: %llds.\n Saving data into files...\n", stop - start); 
-	start = time(NULL);
-	MyIndex.save2file(outputFile);
-	stop = time(NULL);
-	printf("Data saved! Time spent: %llds.\n", stop - start); 
+	if (C == true && X == true)
+	{
+		fprintf(stderr, "Can't continue cutting when we don't even cut.");
+		iusage();
+	}
+	Indexer TheIndexer;
+	if (!C)
+	{
+		printf("Building index from FASTA file '%s'\n", fastaFile);
+		printf("Building...\n");
+		start = time(NULL);
+		TheIndexer.readReference(fastaFile);
+		TheIndexer.buildIndex();
+		stop = time(NULL);
+		printf("Hash table building succeeded! Time spent: %llds.\n Cutting Hash table...\n", stop - start);
+		FILE* file;
+		file = fopen(outputFile, "wb");
+		if (file == nullptr)
+		{
+			throw - 102;
+		}
+		unsigned FinishedIndex = 0;
+		fwrite(&FinishedIndex, sizeof(unsigned), 1, file);
+		fclose(file);
+	}
+	else
+	{
+		printf("Reading index from index files '%s'\n", fastaFile);
+		printf("Reading...\n");
+		start = time(NULL);
+		TheIndexer.loadFromFile(fastaFile);
+		stop = time(NULL);
+		printf("Hash table reading succeeded! Time spent: %llds.\n Cutting Hash table...\n", stop - start);
+	}
+	if (X)
+	{
+		TheIndexer.saveToFile(outputFile);
+	}
+	else
+	{
+		start = time(NULL);
+		TheIndexer.cutIndex(Indexer::hMax, outputFile);
+		stop = time(NULL);
+		printf("Hash table cuted! Time spent: %llds.\n", stop - start);
+	}
+	//TheIndexer.cleanIndex();
 }
 
 static void ausage()
 {
 	fprintf(stderr,
-		"Usage: snap align <index-file> <inputFile> <outputFile(.sam)> [<options>]\n"
+		"Usage: snapi align <index-file> <inputFile> <outputFile(.sam)> [<options>]\n"
 		"Options:\n"
-		"- d   maximum edit distance allowed per read or pair(default: 8)\n"
-		"- n   number of seeds to use per read(default: 25)\n"
-		"- h   maximum hits to consider per seed(default: 250)\n"
-		"- c   confidence threshold(default: 2)\n"
+		"- d   maximum edit distance allowed per read or pair(default: %u)\n"
+		"- n   number of seeds to use per read(default: %u)\n"
+		"- h   maximum hits to consider per seed(default: %u)\n"
+		"- c   confidence threshold(default: %u)\n"
 		"- t   thread number(default: 1)\n"
+		,Aligner::dMax, Aligner::SeedsToTry, Indexer::hMax, Aligner::confidence
 		);
 	exit(1);
 }
@@ -287,8 +283,8 @@ void runAlign(int argc, const char **argv)
 	for (int n = 3; n < argc; n++) {
 		if (strcmp(argv[n], "-d") == 0) {
 			if (n + 1 < argc) {
-				sequence::dMax = atoi(argv[n + 1]);
-				if (sequence::dMax > MAX_EDD)
+				Aligner::dMax = atoi(argv[n + 1]);
+				if (Aligner::dMax > MAX_EDD)
 				{
 					fprintf(stderr,"Maximum edit distance allowed per read can be no bigger than %d.",MAX_EDD);
 					exit(1);
@@ -301,8 +297,8 @@ void runAlign(int argc, const char **argv)
 		}
 		else if (strcmp(argv[n], "-n") == 0) {
 			if (n + 1 < argc) {
-				sequence::SeedsToTry = atof(argv[n + 1]);
-				if (sequence::SeedsToTry > MAX_SEED_NUM)
+				Aligner::SeedsToTry = atof(argv[n + 1]);
+				if (Aligner::SeedsToTry > MAX_SEED_NUM)
 				{
 					fprintf(stderr, "Number of seeds to use per read can be no bigger than %d.", MAX_SEED_NUM);
 					exit(1);
@@ -315,8 +311,8 @@ void runAlign(int argc, const char **argv)
 		}
 		else if (strcmp(argv[n], "-h") == 0) {
 			if (n + 1 < argc) {
-				sequence::hMax = atof(argv[n + 1]);
-				if (sequence::hMax > MAX_HIT_NUM)
+				Indexer::hMax = atof(argv[n + 1]);
+				if (Indexer::hMax > MAX_HIT_NUM)
 				{
 					fprintf(stderr, "Maximum hits to consider per seed can be no bigger than %d.", MAX_HIT_NUM);
 					exit(1);
@@ -329,8 +325,8 @@ void runAlign(int argc, const char **argv)
 		}
 		else if (strcmp(argv[n], "-c") == 0) {
 			if (n + 1 < argc) {
-				sequence::c = atof(argv[n + 1]);
-				if (sequence::c > MAX_EDD)
+				Aligner::confidence = atof(argv[n + 1]);
+				if (Aligner::confidence > MAX_EDD)
 				{
 					fprintf(stderr, "Confidence threshold can be no bigger than %d.", MAX_EDD);
 					exit(1);
@@ -346,7 +342,7 @@ void runAlign(int argc, const char **argv)
 				threadNum = atof(argv[n + 1]);
 				if (threadNum > 8)
 				{
-					fprintf(stderr, "Thraed number can be no bigger than %d.", MAX_EDD);
+					fprintf(stderr, "Thraed number can be no bigger than 8.");
 					exit(1);
 				}
 				n++;
@@ -361,7 +357,7 @@ void runAlign(int argc, const char **argv)
 		}
 	}
 
-	if (seed::length < 16 || seed::length > MAX_SEED_LENGTH) {
+	if (seed::seedLen < 16 || seed::seedLen > MAX_SEED_LENGTH) {
 		// Right now there's some hard-coded stuff, like the seed warp table, that
 		// does not work for seed lengths outside the range of 16-23.
 		fprintf(stderr, "Seed length must be between 16 and %d\n", MAX_SEED_LENGTH);
@@ -369,73 +365,15 @@ void runAlign(int argc, const char **argv)
 	}
 	printf("Reading index...\n"); 
 	start = time(NULL);
-	MyIndex.readFromFile(indexFile);
+	Indexer TheIndexer;
+	TheIndexer.loadFromFile(indexFile);
 	stop = time(NULL);
-	for (int i = 0; i != 256; ++i)
-	{
-		sequence::samName[i] = outputFile[i];
-		if (outputFile[i] == '\0') break;
-	}
 	printf("Done reading index! Time spent: %llds.\nAligning...\n", stop - start); 
-	FILE* fq = fopen(inputFile, "r");
-	if (nullptr == fq)
-	{
-		cout << "Read File Error!"<<endl;
-		exit(0);
-	}
 	start = time(NULL);
-	for (int i = 0; i != threadNum; ++i)
-	{
-		threads.push_back(thread([fq](){
-			sequence read, *bestS=nullptr;
-			bool suc;
-			do
-			{
-				mtxR.lock();
-				suc = read.readNext(fq);
-				mtxR.unlock();
-				if (suc)
-				{
-					read.align(MyIndex, bestS);
-					mtxW.lock();
-					bestS->writeResult(MyIndex);
-					mtxW.unlock();
-					/*if (sequence::SequenceAligned % 10000 == 0)
-					{
-						printf("%u reads aligned\n", sequence::SequenceAligned);
-					}*/
-/*
-				}
-			} while (suc);
-		}));
-	}
-	for (auto& athread : threads){
-		athread.join();
-	}
-	/*sequence read, *bestS = nullptr;
-	bool suc;
-	do
-	{
-		suc = read.readNext(fq);
-		if (suc)
-		{
-			read.align(MyIndex, bestS);
-			bestS->writeResult(MyIndex);
-			if (sequence::SequenceAligned % 10000 == 0)
-			{
-				printf("%u reads aligned\n", sequence::SequenceAligned);
-			}
-		}
-	} while (suc);*/
-
-/*
+	Aligner TheAligner;
+	TheAligner.singleAlign(inputFile, outputFile, threadNum);
 	stop = time(NULL);
-	long speed = ((long)sequence::SequenceAligned) / (long)(stop - start);
-	printf("All %u reads aligned! Time spent: %llds. Read speed: %ld reads/s.", sequence::SequenceAligned, stop - start, speed); 
-	fclose(fq);
-	if (sequence::outputFile != nullptr)
-	{
-		fclose(sequence::outputFile);
-	}
+	unsigned speed = ((unsigned)TheAligner.SequenceAligned) / (unsigned)(stop - start);
+	printf("All %u reads aligned! Time spent: %llds. Read speed: %u reads/s, hMax: %u.", TheAligner.SequenceAligned, stop - start, speed, Indexer::hMax);
+	//TheIndexer.cleanIndex();
 }
-*/

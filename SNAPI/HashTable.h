@@ -25,6 +25,22 @@ public:
 		unsigned long long key;
 		std::vector<unsigned> locations;
 	};
+	class Result
+	{
+		Entry* Main;
+		OverflowEntry* Overflow;
+	public:
+		Result(Entry* MainResult = nullptr, OverflowEntry* OverflowResult = nullptr);
+		unsigned size() const
+		{
+			if (Main == nullptr) return 0;
+			if (Main->location1 == UnusedLocation) return 0;
+			if (Main->location2 == UnusedLocation) return 1;
+			if (Overflow == nullptr) return 2;
+			return Overflow->locations.size() + 2;
+		}
+		unsigned& operator[](unsigned index);
+	};
 	~HashTable();
 	HashTable(unsigned NumberOfEntries = 0);
 	inline unsigned getnMainTable() const { return nMainTable; }
@@ -36,7 +52,7 @@ public:
 	Entry* lookupMainTable(unsigned long long key);
 	OverflowEntry * lookupOverflowTable(unsigned long long key);
 	//OverflowEntry lookupIntel(unsigned long long) const;
-	void lookup(unsigned long long key, Entry* MainResult, OverflowEntry* OverflowResult);
+	Result lookup(unsigned long long key);
 
 	bool saveToFile(FILE*);
 	bool loadFromFile(FILE*);

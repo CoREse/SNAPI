@@ -28,9 +28,15 @@ void printError(int);//receive error number and print the error.
 #define MALLOC_BLOCK 1024
 #define MAX_SEQUENCE_LENGTH 1024
 //if pos/this is the same, then see them as a same position
-#define SAME_POS_BLOCK 32
+#define SAME_POS_BLOCK 4
 #define MAX_K 31
 #define MAX_SEED_NUM 128
 #define MAX_HIT_NUM 2048
 #define MAX_EDD 1024
 #define MAX_SAVE_SIZE 50000000u
+
+#define MAX_NAME_LENGTH 256
+
+#define WINDOWS
+#define SNAP
+//#define DEBUG

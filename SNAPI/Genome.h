@@ -24,6 +24,7 @@ public:
 		{
 			if (location < end_locations[i]) return i;
 		}
+		return chrs.size() - 1;
 	}
 	bool saveToFile(FILE*);
 	bool loadFromFile(FILE*);

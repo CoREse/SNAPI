@@ -122,10 +122,9 @@ HashTable::OverflowEntry * HashTable::lookupOverflowTable(unsigned long long key
 	}
 	return nullptr;
 }
-void HashTable::lookup(unsigned long long key, Entry* MainResult, OverflowEntry* OverflowResult)
+HashTable::Result HashTable::lookup(unsigned long long key)
 {
-	MainResult = lookupMainTable(key);
-	OverflowResult = lookupOverflowTable(key);
+	return Result(lookupMainTable(key),lookupOverflowTable(key));
 }
 
 bool HashTable::saveToFile(FILE* file)
@@ -168,4 +167,16 @@ bool HashTable::loadFromFile(FILE* file)
 			OverflowTable[i].locations.push_back(tmploc);
 		}
 	}
+}
+
+HashTable::Result::Result(Entry* MainResult, OverflowEntry* OverflowResult)
+:Main(MainResult), Overflow(OverflowResult)
+{
+}
+
+unsigned& HashTable::Result::operator[](unsigned index)
+{
+	if (index == 0) return Main->location1;
+	if (index == 1) return Main->location2;
+	return Overflow->locations[index - 2];
 }

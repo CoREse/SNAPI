@@ -9,10 +9,11 @@ class Indexer
 public:
 	static Genome* Reference;
 	static HashTable* Index;
-	static unsigned MaxH,ReadLength;
+	static unsigned hMax, ReadLength, SimilarEdd;
 	Genome* readReference(const char * FolderPath);
 	HashTable* buildIndex();
-	HashTable* cutIndex(unsigned hMax);//the soul of the improved algorithm
+	HashTable* cutIndex(unsigned hMax, const char * FileName = nullptr);//the soul of the improved algorithm
+	HashTable* throughlyCut(unsigned hMax, const char * FileName = nullptr);
 	bool saveToFile(const char * FileName);
 	bool loadFromFile(const char * FileName);
 	void cleanIndex();

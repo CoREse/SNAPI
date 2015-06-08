@@ -23,7 +23,7 @@ Genome::Genome(const char * FolderPath)
 			//open the fa file
 			string FaName = FolderPath;
 			FaName.append(file.name);
-			infile = fopen(FaName.c_str(),"r");
+			infile = fopen(FaName.c_str(), "r");
 			if (infile == nullptr)
 			{
 				throw - 102;
@@ -31,7 +31,7 @@ Genome::Genome(const char * FolderPath)
 			}
 			//read the fa file
 			fscanf(infile, "%s", NameBuffer);
-			tmpChr.name = NameBuffer;
+			tmpChr.name = NameBuffer + 1;//the first charactor is '>'
 			rewind(infile);
 			NASeq tmpNASeq(infile);
 			fclose(infile);
@@ -47,7 +47,7 @@ Genome::Genome(const char * FolderPath)
 			}
 			end_locations[chrs.size()] = tmpChr.start_location + tmpChr.sequence.length;
 			chrs.push_back(tmpChr);
-		} while (_findnext(lf,&file)==0);
+		} while (_findnext(lf, &file) == 0);
 	}
 	_findclose(lf);
 }
@@ -62,12 +62,12 @@ Genome::~Genome()
 
 bool Genome::saveToFile(FILE* file)
 {
-	fprintf(file,"%u\n",chrs.size());
-	for (unsigned i=0;i<chrs.size();++i)
+	fprintf(file, "%u\n", chrs.size());
+	for (unsigned i = 0; i < chrs.size(); ++i)
 	{
-		fprintf(file,"%s ",chrs[i].name.c_str());
+		fprintf(file, "%s ", chrs[i].name.c_str());
 		if (!chrs[i].sequence.saveToFile(file)) return false;
-		fprintf(file,"%u %u\n",chrs[i].start_location, end_locations[i]);
+		fprintf(file, "%u %u\n", chrs[i].start_location, end_locations[i]);
 	}
 	return true;
 }
@@ -75,14 +75,14 @@ bool Genome::saveToFile(FILE* file)
 bool Genome::loadFromFile(FILE* file)
 {
 	unsigned chrsize;
-	fscanf(file,"%u\n",&chrsize);
-	for (unsigned i=0;i<chrsize;++i)
+	fscanf(file, "%u\n", &chrsize);
+	for (unsigned i = 0; i < chrsize; ++i)
 	{
 		Chromesome tmpChr;
-		fscanf(file,"%s ",NameBuffer);
-		tmpChr.name=NameBuffer;
+		fscanf(file, "%s ", NameBuffer);
+		tmpChr.name = NameBuffer;
 		if (!tmpChr.sequence.loadFromFile(file)) return false;
-		fscanf(file,"%u %u\n",&(tmpChr.start_location),end_locations+i);
+		fscanf(file, "%u %u\n", &(tmpChr.start_location), end_locations + i);
 		chrs.push_back(tmpChr);
 	}
 	return true;
